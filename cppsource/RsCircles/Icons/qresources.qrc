@@ -1,0 +1,11 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource>
+        <file>open.png</file>
+    </qresource>
+    <qresource>
+        <file>saveas.png</file>
+    </qresource>
+    <qresource>
+        <file>reset.png</file>
+    </qresource>
+</RCC>

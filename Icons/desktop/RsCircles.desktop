@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0.2
+Type=Application
+Terminal=false
+Exec={{BASE_DIR}}/Imaging/RsCircles %u
+Icon={{BASE_DIR}}/Icons/rscircles256.png
+Name=REShAPE Circles
+
+Name[en_US]=REShAPE Circles

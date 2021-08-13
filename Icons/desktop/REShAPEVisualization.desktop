@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version={{VISUAL_APP_VERSION}}
+Type=Application
+Terminal=false
+Exec=python {{BASE_DIR}}/reshapevis.py
+Name={{VISUAL_APP_NAME}}
+
+Name[en_US]={{VISUAL_APP_NAME}}

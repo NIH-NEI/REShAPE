@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0.1
+Type=Application
+Terminal=false
+Exec={{BASE_DIR}}/Imaging/ReshapeViewer %u
+Name=REShAPE Viewer
+
+Name[en_US]=REShAPE Viewer

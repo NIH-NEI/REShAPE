@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version={{RESHAPE_APP_VERSION}}
+Type=Application
+Terminal=true
+Exec=python {{BASE_DIR}}/reshapectl.py
+Name={{RESHAPE_APP_NAME}}
+
+Name[en_US]={{RESHAPE_APP_NAME}}
