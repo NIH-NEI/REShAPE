@@ -186,7 +186,7 @@ class FijiProc(object):
                 if st is None: continue
                 ts, what, pathname = st
                 tile.add_item(ts, what, pathname)
-                if what in ('NeighborStats', 'ParticleData'):
+                if what in ('NeighborStats', 'ParticleData', 'Outlines', 'Neighbors', 'Area'):
                     self.update_status(os.path.basename(pathname))
             #
             rc = p.wait()
@@ -326,6 +326,12 @@ class MatlabSegmentation(object):
                 fn = None
                 if ln.startswith('Already processed image:'):
                     fn = ln[25:] + ' (already done)'
+                elif ln.startswith('Processing '):
+                    fn = ln
+                elif ln.startswith('Writing segmented image '):
+                    parts = ln.split(' -> ')
+                    if len(parts) > 1:
+                        fn = '-> '+parts[1].strip()
                 elif ln.startswith('Segmenting image:'):
                     fn = '<- '+ln[18:].split('<-')[0].strip()
                 elif ln.startswith('Writing metadata '):
@@ -850,6 +856,12 @@ class ReshapeCtlMainWindow(object):
         self.matlabButton = matlabButton = Button(window, text="Go For It", command=matlButtonClicked)
         matlabButton.pack(side=RIGHT, padx=5, pady=5, ipadx=15)
         #
+        self.shutBoxVar = IntVar()
+        self.shutBoxVar.set(0)
+        self.shutBox = Checkbutton(window, text="Shutdown the system when finished",
+                variable=self.shutBoxVar, onvalue=1, offvalue=0)
+        self.shutBox.pack(side=RIGHT, padx=5, pady=5, ipadx=15)
+        #
         self.batchSize = self.DEFAULT_BATCH_SIZE
         self.tilepad = self.DEFAULT_TILEPAD
         self.useGpu = 'Yes'
@@ -860,6 +872,7 @@ class ReshapeCtlMainWindow(object):
         self.unitCvtVar.trace("w", self.unitCvtVarChanged)
         self.saveSrcVar.trace("w", self.saveSrcVarChanged)
         self.mainVar.trace("w", self.mainVarChanged)
+        self.shutBoxVar.trace("w", self.shutBoxVarChanged)
         self.cziOptionsChanged()
         self.loadState()
     #
@@ -886,6 +899,10 @@ class ReshapeCtlMainWindow(object):
         self.onChannelCheck()
     def saveSrcVarChanged(self, a, b, c):
         self.cziOptionsChanged()
+    #
+    def shutBoxVarChanged(self, a, b, c):
+        shutStatus = 'ON' if self.shutBoxVar.get() != 0 else 'OFF'
+        print 'Automatic system shutdown is', shutStatus
     #
     def reconstrVarChanged(self, a, b, c):
         st = DISABLED if self.reconstrVar.get() == 'No' else NORMAL
@@ -974,7 +991,19 @@ class ReshapeCtlMainWindow(object):
         self.statusText.see(END)
         print ''
         print 'Done (%d).' % (rc,)
+        if self.shutBoxVar.get() != 0:
+            self.autoShutDown()
         return rc
+    
+    def autoShutDown(self):
+        print('Trying to shut down the system...')
+        try:
+            if sys.platform == 'win32':
+                os.system('shutdown /s /f')
+            else:
+                os.system('sudo shutdown now')
+        except Exception, ex:
+            print('Failed to shutdown the system, reason:', str(ex))
     
     @property
     def srcDir(self):
@@ -1179,16 +1208,14 @@ class ReshapeCtlMainWindow(object):
         self._set_cell_limit_pixels(par.get('pore_lower'), par.get('pore_upper'))
     #
     def _check_matlab(self):
-        if 'SEGMENTATION' in self.cfg and self.cfg.get('USE_STANDALONE'):
+        if self.cfg.get('SEGMENTATION') and self.cfg.get('USE_STANDALONE'):
             if os.path.exists(self.cfg['SEGMENTATION']):
                 return True
-        if 'matlab' in self.cfg:
-            matlab = self.cfg['matlab']
-            if not matlab is None:
-                return os.path.exists(matlab)
+        if self.cfg.get('matlab'):
+            return os.path.exists(self.cfg['matlab'])
         return False
     def _check_fiji(self):
-        if 'fiji' in self.cfg and os.path.exists(self.cfg['fiji']):
+        if self.cfg.get('fiji') and os.path.exists(self.cfg['fiji']):
             return True
         return False   
     def _checkConfig(self):
