@@ -40,7 +40,7 @@ for (i in 1:length(features)) {
 {% if secondary %}		
 		geom_point(aes(color={{primary}}), shape=21,
 			alpha={{ dotalpha }}, size={{ dotsize }},
-			position=position_jitterdodge(jitter.width=0.82, dodge.width=1)) +
+			position=position_jitterdodge(jitter.width=0.40, dodge.width=1)) +
 {% else %}
 		geom_jitter(aes(color={{primary}}), alpha={{ dotalpha }}, size={{ dotsize }}) +
 {% endif %}

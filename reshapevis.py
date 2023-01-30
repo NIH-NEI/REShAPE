@@ -22,6 +22,7 @@ from visual.templatemgr import TemplateManager
 from visual.plotmgr import PlotManager
 from visual.dialogs import AttribValueDialog
 
+from reshape_config import *
 import reshape_version
 
 APP_NAME = visual.APP_NAME = reshape_version.VISUAL_APP_NAME
@@ -782,11 +783,30 @@ class ReshapeVisMainWindow(object):
         self.visframe.updateFileGroups()
         #
         if not self.srcDir:
-            self.srcDir = homedir
+            self.srcDir = os.path.expanduser('~')
         self.gmgrframe.setOption('savestate', self.saveState)
         
         self.gmgrframe.grid_remove()
         self.curframe = self.visframe
+        
+        need_save = False
+        if not os.path.isfile(self.rscript):
+            configurator = ReshapeConfig()
+            if 'Rscript' in configurator.setup:
+                self.rscript = configurator.setup['Rscript']
+                print 'Rscript:', self.rscript
+                need_save = True
+        if not self.cellFeatureLabels:
+            self.cellFeatureLabels = {
+                "Width": "~B.Box ~Width ~(mu~m)", 
+                "Area": "~Area ~(mu~m^{2})", 
+                "Perim.": "Perimeter", 
+                "Height": "B.Box Height"
+            }
+            #print 'cellFeatureLabels :', self.cellFeatureLabels
+            need_save = True
+        if need_save:
+            self.saveState()
 
         self.paneVar.trace("w", self.paneVarChanged)
         #
@@ -847,6 +867,7 @@ class ReshapeVisMainWindow(object):
     @rscript.setter
     def rscript(self, text):
         self.visframe.rscript = text
+        self.visframe.pmgr.rscript = text
     @property
     def cellFeatureLabels(self):
         return self.visframe.ftmgr.exprMap.copy()
@@ -855,23 +876,20 @@ class ReshapeVisMainWindow(object):
         self.visframe.ftmgr.exprMap.update(val)
     #
     def loadState(self):
-        self.reshapeParams = None
         try:
             with open(self.statefile, 'r') as fi:
                 params = json.load(fi)
             for prop in self.PERSISTENT_PROPERTIES:
                 if not prop in params: continue
                 setattr(self, prop, params[prop])
-        except Exception, ex:
-            print 'loadState() exception:', ex
+        except Exception:
             pass
     def saveState(self):
         try:
             params = dict((prop, getattr(self, prop)) for prop in self.PERSISTENT_PROPERTIES)
             with open(self.statefile, 'w') as fo:
                 json.dump(params, fo, indent=2)
-        except Exception, ex:
-            print 'saveState() exception:', ex
+        except Exception:
             pass
     def run(self):
         self.window.mainloop();
