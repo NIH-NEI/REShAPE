@@ -55,7 +55,7 @@ rsMainWindow::rsMainWindow()
 
 	setWindowTitle(tr("REShAPE Circles ver. ") + QString(rsImageView_VERSION.c_str()));
 	setMinimumSize(screen_width / 3, screen_height / 3);
-	resize(screen_width * 70 / 100, screen_height * 70 / 100);
+	resize(screen_width * 70 / 100, screen_height * 75 / 100);
 	move(screen_width / 6, screen_height / 8);
 
 	lutMgr = new rsLUT();
