@@ -34,3 +34,60 @@ rsDisplayPar visualParams[] = {
 };
 size_t numVisualParams = sizeof visualParams / sizeof(rsDisplayPar);
 
+std::vector<HSeg> get_particle_fill(int sz)
+{
+	std::vector<HSeg> fill;
+
+	if (sz > 5 && sz < 25) {
+		int ymax = sz - 1;
+		for (int y = -ymax; y <= ymax; y++) {
+			int xmax = int(sqrt(double(sz) * double(sz) - double(y) * double(y)));
+			fill.push_back(HSeg(y, -xmax, xmax));
+		}
+		return fill;
+	}
+
+	switch (sz) {
+	case 1:
+		fill.push_back(HSeg(0, 0, 1));
+		fill.push_back(HSeg(1, 0, 1));
+		break;
+	case 2:
+		fill.push_back(HSeg(-1, -1, 1));
+		fill.push_back(HSeg(0, -1, 1));
+		fill.push_back(HSeg(1, -1, 1));
+		break;
+	case 3:
+		fill.push_back(HSeg(-2, -1, 1));
+		fill.push_back(HSeg(-1, -2, 2));
+		fill.push_back(HSeg(0, -2, 2));
+		fill.push_back(HSeg(1, -2, 2));
+		fill.push_back(HSeg(2, -1, 1));
+		break;
+	case 4:
+		fill.push_back(HSeg(-3, -1, 1));
+		fill.push_back(HSeg(-2, -2, 2));
+		fill.push_back(HSeg(-1, -3, 3));
+		fill.push_back(HSeg(0, -3, 3));
+		fill.push_back(HSeg(1, -3, 3));
+		fill.push_back(HSeg(2, -2, 2));
+		fill.push_back(HSeg(3, -1, 1));
+		break;
+	case 5:
+		fill.push_back(HSeg(-4, -1, 1));
+		fill.push_back(HSeg(-3, -3, 3));
+		fill.push_back(HSeg(-2, -3, 3));
+		fill.push_back(HSeg(-1, -4, 4));
+		fill.push_back(HSeg(0, -4, 4));
+		fill.push_back(HSeg(1, -4, 4));
+		fill.push_back(HSeg(2, -3, 3));
+		fill.push_back(HSeg(3, -3, 3));
+		fill.push_back(HSeg(4, -1, 1));
+		break;
+	default:
+		fill.push_back(HSeg(0, 0, 0));
+		break;
+	}
+
+	return fill;
+}

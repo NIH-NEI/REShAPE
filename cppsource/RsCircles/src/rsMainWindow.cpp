@@ -1,6 +1,6 @@
 #include "rsMainWindow.h"
 
-std::string rsImageView_VERSION = "1.0.2 (2019-06-12)";
+std::string rsImageView_VERSION = "1.0.3 (2023-01-10)";
 
 rsMainWindow* rsMainWindow::TheApp = NULL;
 
@@ -9,11 +9,41 @@ static QColor hiColor(0xFF, 0xAA, 0xFF, 0xFF);
 static QColor noColor(0x00, 0xFF, 0x00, 0xFF);
 static QColor hoColor(0xAA, 0xFF, 0xAA, 0xFF);
 
+static struct rsCellSizeDescr {
+	int vsz;
+	const char* label;
+} cell_sizes[] = {
+	{1, "Tiny (1)"},
+	{2, "X-Small (2)"},
+	{3, "Small (3)"},
+	{5, "Medium (5)"},
+	{7, "Large (7)"},
+	{9, "X-Large (9)"}
+};
+static const int n_cell_sizes = sizeof cell_sizes / sizeof cell_sizes[0];
+
+static int closest_cell_size_index(double sz)
+{
+	int cidx = -1;
+	double bsf = 1000.;
+	for (int i = 0; i < n_cell_sizes; i++) {
+		double dist = fabs(sz - double(cell_sizes[i].vsz));
+		if (cidx < 0 || dist < bsf) {
+			cidx = i;
+			bsf = dist;
+		}
+	}
+	return cidx;
+}
+
 // Constructor
 rsMainWindow::rsMainWindow()
 	: innerCir(0, 0, 0, niColor, hiColor), outerCir(0, 0, 0, noColor, hoColor),
 	innerPoly(0, 0, 0, niColor, hiColor), outerPoly(0, 0, 0, noColor, hoColor)
 {
+	dfltLimits.resize(numVisualParams + 2);
+	curLimits.resize(numVisualParams + 2);
+
 	homeDir = QDir(QDir::home().filePath(".reshape"));
 	if (!homeDir.exists()) homeDir.mkpath(".");
 	stateFile = QFileInfo(homeDir, QString("RsCirclesState.json"));
@@ -25,7 +55,7 @@ rsMainWindow::rsMainWindow()
 
 	setWindowTitle(tr("REShAPE Circles ver. ") + QString(rsImageView_VERSION.c_str()));
 	setMinimumSize(screen_width / 3, screen_height / 3);
-	resize(screen_width * 2 / 3, screen_height * 2 / 3);
+	resize(screen_width * 70 / 100, screen_height * 70 / 100);
 	move(screen_width / 6, screen_height / 8);
 
 	lutMgr = new rsLUT();
@@ -36,7 +66,7 @@ rsMainWindow::rsMainWindow()
 	max_rad = 0.;
 	imgView = new rsImageViewQt();
 	imgView->SetGlasbeyPalette(lutMgr->GetGlasbey());
-	imgView->SetLegendWidth(screen_height / 4);
+	imgView->SetLegendWidth(screen_height * 26 / 100);
 
 	setMouseTracking(true);
 
@@ -110,34 +140,79 @@ void rsMainWindow::createView()
 	ctrlLayout->setMargin(5);
 	ctrlLayout->setSpacing(15);
 
+	paramBox = new QGroupBox(tr("Feature Settings"));
+	paramLayout = new QGridLayout();
+	paramLayout->setColumnStretch(0, 0);
+	paramLayout->setColumnStretch(1, 10);
+	paramLayout->setColumnStretch(2, 0);
+	paramLayout->setColumnStretch(3, 10);
+	paramBox->setLayout(paramLayout);
+	ctrlLayout->addWidget(paramBox, 0, 0, 1, 2);
 
 	ctrlLabel = new QLabel(tr("Feature:"));
-	ctrlLayout->addWidget(ctrlLabel, 0, 0, Qt::AlignRight);
+	//ctrlLabel->setStyleSheet(tr("QLabel{height: 3em;}"));
+	paramLayout->addWidget(ctrlLabel, 0, 0, Qt::AlignRight);
 	cbParam = new QComboBox();
+	cbParam->setStyleSheet(tr("QComboBox {height: 1.5em;}"));
 	cbParam->setEditable(false);
 	cbParam->addItem("Coordinates");
 	cbParam->addItem("Neighbors");
 	for (i = 0; i < numVisualParams; i++) {
 		cbParam->addItem(visualParams[i].text);
 	}
-	ctrlLayout->addWidget(cbParam, 0, 1);
+	paramLayout->addWidget(cbParam, 0, 1, 1, 3);
 
-	legendLabel = new QLabel();
-	legendLabel->setPixmap(QPixmap::fromImage(*imgView->GetLegend()));
-	ctrlLayout->addWidget(legendLabel, 1, 0, 1, 2);
+	cellSizeLabel = new QLabel(tr("Cell Size:"));
+	paramLayout->addWidget(cellSizeLabel, 2, 0, Qt::AlignRight);
+	cbCellSize = new QComboBox();
+	cbCellSize->setStyleSheet(tr("QComboBox {height: 1.5em;}"));
+	for (i = 0; i < n_cell_sizes; i++) {
+		cbCellSize->addItem(cell_sizes[i].label);
+	}
+	cbCellSize->setCurrentIndex(2);
+	paramLayout->addWidget(cbCellSize, 2, 1, 1, 3);
+
+	lbOpacity = new QLabel(tr("Opacity:"));
+	slOpacity = new QSlider(Qt::Horizontal);
+	slOpacity->setRange(10, 100);
+	slOpacity->setValue(100);
+	paramLayout->addWidget(lbOpacity, 3, 0, Qt::AlignRight);
+	paramLayout->addWidget(slOpacity, 3, 1, 1, 3);
 
 	lutLabel = new QLabel(tr("LUT:"));
-	ctrlLayout->addWidget(lutLabel, 2, 0, Qt::AlignRight);
+	paramLayout->addWidget(lutLabel, 4, 0, Qt::AlignRight);
 	cbLut = new QComboBox();
+	cbLut->setStyleSheet(tr("QComboBox {height: 1.5em;}"));
 	cbLut->setEditable(false);
 	for (i = 0; i < lutMgr->GetNumPalettes(); i++) {
 		cbLut->addItem(lutMgr->GetPaletteAt(i).GetName().c_str());
 	}
-	ctrlLayout->addWidget(cbLut, 2, 1);
+	paramLayout->addWidget(cbLut, 4, 1, 1, 3);
+
+	legendLabel = new QLabel();
+	QPixmap pm = QPixmap::fromImage(*imgView->GetLegend());
+	legendLabel->setPixmap(pm);
+	legendLabel->resize(pm.size());
+	paramLayout->addWidget(legendLabel, 5, 0, 1, 4);
+
+	lbMin = new QLabel(tr("Limits:"));
+	paramLayout->addWidget(lbMin, 6, 0, Qt::AlignRight);
+	txMin = new QLineEdit();
+	txMin->setStyleSheet(tr("QLineEdit {width: 6em;}"));
+	paramLayout->addWidget(txMin, 6, 1);
+	lbMax = new QLabel(tr(".."));
+	paramLayout->addWidget(lbMax, 6, 2);
+	txMax = new QLineEdit();
+	txMax->setStyleSheet(tr("QLineEdit {width: 6em;}"));
+	paramLayout->addWidget(txMax, 6, 3);
+
+	updButton = new QPushButton(tr("Update"));
+	paramLayout->addWidget(updButton, 7, 2, 1, 2);
 
 	inLabel = new QLabel(tr("Inner:"));
 	ctrlLayout->addWidget(inLabel, 3, 0, Qt::AlignRight);
 	cbInner = new QComboBox();
+	cbInner->setStyleSheet(tr("QComboBox {height: 1.5em;}"));
 	cbInner->addItem(tr("Circle"));
 	cbInner->addItem(tr("Polygon"));
 	ctrlLayout->addWidget(cbInner, 3, 1);
@@ -145,6 +220,7 @@ void rsMainWindow::createView()
 	outLabel = new QLabel(tr("Outer:"));
 	ctrlLayout->addWidget(outLabel, 4, 0, Qt::AlignRight);
 	cbOuter = new QComboBox();
+	cbOuter->setStyleSheet(tr("QComboBox {height: 1.5em;}"));
 	cbOuter->addItem(tr("Circle"));
 	cbOuter->addItem(tr("Polygon"));
 	ctrlLayout->addWidget(cbOuter, 4, 1);
@@ -165,7 +241,8 @@ void rsMainWindow::createView()
 	ctrlLayout->addWidget(bottomWidget, 6, 0, 1, 2);
 
 	ctrlLayout->setColumnStretch(1, 100);
-	ctrlLayout->setRowStretch(6, 100);
+	ctrlLayout->setRowStretch(0, 0);
+	ctrlLayout->setRowStretch(6, 10);
 
 	viewLayout = new QGridLayout(centralwidget);
 	viewLayout->setObjectName(QString::fromUtf8("viewLayout"));
@@ -174,7 +251,11 @@ void rsMainWindow::createView()
 	viewLayout->setColumnStretch(0, 0);
 	viewLayout->setColumnStretch(1, 100);
 
+	loadLimits();
+
 	connect(cbParam, SIGNAL(currentIndexChanged(int)), this, SLOT(visualParamChanged(int)));
+	connect(cbCellSize, SIGNAL(currentIndexChanged(int)), this, SLOT(cellSizeChanged(int)));
+	connect(slOpacity, SIGNAL(sliderReleased()), this, SLOT(opacitySliderReleased()));
 	connect(cbLut, SIGNAL(currentIndexChanged(int)), this, SLOT(lutChanged(int)));
 	cbLut->setCurrentIndex(lutMgr->FindPalette("Thermal"));
 
@@ -182,6 +263,7 @@ void rsMainWindow::createView()
 	connect(cbOuter, SIGNAL(currentIndexChanged(int)), this, SLOT(outerChanged(int)));
 
 	connect(arcButton, SIGNAL(clicked()), this, SLOT(arcButtonClicked()));
+	connect(updButton, SIGNAL(clicked()), this, SLOT(updButtonClicked()));
 
 	centralwidget->setMouseTracking(true);
 }
@@ -213,13 +295,41 @@ void rsMainWindow::handleOpenFile(const char *fn)
 void rsMainWindow::visualParamChanged(int idx_par)
 {
 	// std::cout << "idx_par = " << std::to_string(idx_par) << std::endl;
-	imgView->SetVisualParameter(idx_par);
+	loadLimits();
+
+	int vsz = cell_sizes[cbCellSize->currentIndex()].vsz;
+	imgView->SetParticleSize(vsz);
+	double opacity = slOpacity->value() * 0.01;
+	imgView->SetOpacity(opacity);
+
+	rsParamLimits& cpl = curLimits[idx_par];
+	imgView->SetVisualParameter(idx_par, cpl.vmin, cpl.vmax);
 	imgView->ResetView(false);
 	legendLabel->setPixmap(QPixmap::fromImage(*imgView->GetLegend()));
 }
 
+void rsMainWindow::cellSizeChanged(int idx)
+{
+	if (_busy) return;
+
+	int vsz = cell_sizes[cbCellSize->currentIndex()].vsz;
+	imgView->SetParticleSize(vsz);
+	double opacity = slOpacity->value() * 0.01;
+	imgView->SetOpacity(opacity);
+
+	loadLimits();
+	imgView->reFillParticles();
+	imgView->ResetView(false);
+}
+void rsMainWindow::opacitySliderReleased()
+{
+	loadLimits();
+	cellSizeChanged(cbCellSize->currentIndex());
+}
+
 void rsMainWindow::lutChanged(int idx_lut)
 {
+	loadLimits();
 	imgView->SetPalette(&lutMgr->GetPaletteAt(idx_lut));
 	imgView->ResetView(false);
 	legendLabel->setPixmap(QPixmap::fromImage(*imgView->GetLegend()));
@@ -302,10 +412,120 @@ void rsMainWindow::saveImageData()
 	}
 }
 
+void rsMainWindow::updateParticleLimits()
+{
+	for (int j = 0; size_t(j) < dfltLimits.size(); j++) {
+		rsParamLimits& pl = dfltLimits[j];
+		pl.vmax = pl.vmin = NaN;
+	}
+	for (rsParticle& pt : particles) {
+		for (int i = 0; i < numVisualParams; i++) {
+			size_t par_off = visualParams[i].off;
+			double v = *pt.parPtr(par_off);
+			if (std::isnan(v)) continue;
+			rsParamLimits& pl = dfltLimits[i + 2];
+			if (std::isnan(pl.vmin)) {
+				pl.vmin = pl.vmax = v;
+				continue;
+			}
+			if (pl.vmin > v) pl.vmin = v;
+			if (pl.vmax < v) pl.vmax = v;
+		}
+	}
+	for (int j = 0; size_t(j) < dfltLimits.size(); j++) {
+		rsParamLimits& pl = dfltLimits[j];
+		if (!std::isnan(pl.vmin)) {
+			if (pl.vmin == pl.vmax) pl.vmax = pl.vmin + 1.;
+		}
+		curLimits[j] = pl;
+	}
+}
+
+void rsMainWindow::validateLimits()
+{
+	int idx = cbParam->currentIndex();
+	if (idx < 2) {
+		txMin->setText(tr(""));
+		txMin->setEnabled(false);
+		txMax->setText(tr(""));
+		txMax->setEnabled(false);
+		return;
+	}
+	txMin->setEnabled(true);
+	txMax->setEnabled(true);
+
+	rsParamLimits& dpl = dfltLimits[idx];
+	rsParamLimits& cpl = curLimits[idx];
+
+	bool ok = false;
+	double vmin = txMin->text().toDouble(&ok);
+	if (ok) {
+		cpl.vmin = vmin;
+	}
+	else {
+		cpl.vmin = dpl.vmin;
+	}
+	double vmax = txMax->text().toDouble(&ok);
+	if (ok) {
+		cpl.vmax = vmax;
+	}
+	else {
+		cpl.vmax = dpl.vmax;
+	}
+	QString txt;
+	if (!std::isnan(cpl.vmin))
+		txt = QString("%1").arg(cpl.vmin, 0, 'F', 2);
+	txMin->setText(txt);
+	if (!std::isnan(cpl.vmax)) {
+		if (cpl.vmin == cpl.vmax) cpl.vmax = cpl.vmin + 1.;
+		txt = QString("%1").arg(cpl.vmax, 0, 'F', 2);
+	}
+	else txt = "";
+	txMax->setText(txt);
+}
+
+void rsMainWindow::loadLimits()
+{
+	txMin->setText(tr(""));
+	txMax->setText(tr(""));
+	int idx = cbParam->currentIndex();
+	if (idx < 2) {
+		txMin->setEnabled(false);
+		txMax->setEnabled(false);
+		return;
+	}
+	txMin->setEnabled(true);
+	txMax->setEnabled(true);
+
+	rsParamLimits& cpl = curLimits[idx];
+	if (!std::isnan(cpl.vmin)) {
+		QString txt = QString("%1").arg(cpl.vmin, 0, 'F', 2);
+		txMin->setText(txt);
+	}
+	if (!std::isnan(cpl.vmax)) {
+		QString txt = QString("%1").arg(cpl.vmax, 0, 'F', 2);
+		txMax->setText(txt);
+	}
+}
+
+void rsMainWindow::updButtonClicked()
+{
+	validateLimits();
+	int idx_par = cbParam->currentIndex();
+	rsParamLimits& cpl = curLimits[idx_par];
+	imgView->SetVisualParameter(idx_par, cpl.vmin, cpl.vmax);
+	imgView->ResetView(false);
+	legendLabel->setPixmap(QPixmap::fromImage(*imgView->GetLegend()));
+}
+
 void rsMainWindow::readCsvFile(const char *fname)
 {
+	imgView->beginWait();
+
 	loadSelectors();
 	rdr.ReadParticles(fname, particles);
+	updateParticleLimits();
+	loadLimits();
 
 	double maxXm = rdr.GetMaxXm();
 	double maxYm = rdr.GetMaxYm();
@@ -341,14 +561,23 @@ void rsMainWindow::readCsvFile(const char *fname)
 	}
 	else area = 25.;
 	double side = sqrt(area) * scale_to_img;
-	// std::cout << "side = " << side << std::endl;
-	double opacity = side / 2.;
+	//std::cout << "side = " << side << std::endl;
+	double opacity = side*0.75;
 	if (opacity > 1.) opacity = 1.;
 	else if (opacity < 0.1) opacity = 0.1;
 	// std::cout << "opacity = " << opacity << std::endl;
-	int vsz = int(side);
-	if (vsz < 2) vsz = 2; else if (vsz > 5) vsz = 5;
-	// std::cout << "vsz = " << vsz << std::endl;
+
+	int idx = closest_cell_size_index(side * 0.6);
+	int vsz = cell_sizes[idx].vsz;
+
+	_busy = true;
+	cbCellSize->setCurrentIndex(idx);
+	slOpacity->setValue(int(opacity * 100.));
+	opacity = slOpacity->value() * 0.01;
+
+	// int vsz = int(side*0.5);
+	// if (vsz > 5) vsz = 5;
+	// vsz = 5;
 
 	imgView->InitializeView();
 	imgView->SetParticles(&particles, w, h, opacity, vsz);
@@ -359,8 +588,10 @@ void rsMainWindow::readCsvFile(const char *fname)
 
 	imgView->ResetView(true);
 	imgView->ImageDataModified();
+	legendLabel->setPixmap(QPixmap::fromImage(*imgView->GetLegend()));
 
-	QApplication::restoreOverrideCursor();
+	imgView->endWait();
+	_busy = false;
 }
 
 void rsMainWindow::writeCsvFile(const char *fname)
@@ -466,7 +697,7 @@ void rsMainWindow::resetSelectors()
 	outerPoly.moveto(w / 2, h / 2 - 20, outr0);
 	innerChanged(cbInner->currentIndex());
 	outerChanged(cbOuter->currentIndex());
-	imgView->repaint();
+	imgView->ResetView(true);
 }
 
 void rsMainWindow::resetInner(rsFigure &inner)

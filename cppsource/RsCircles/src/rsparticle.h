@@ -61,6 +61,14 @@ extern rsDisplayPar visualParams[];
 extern size_t numVisualParams;
 #endif
 
+struct rsParamLimits
+{
+	double vmin;
+	double vmax;
+	rsParamLimits() : vmin(NaN), vmax(NaN) {}
+	rsParamLimits(double _vmin, double _vmax) : vmin(_vmin), vmax(_vmax) {}
+};
+
 class rsParticle {
 public:
 	rsParticlePar p;
@@ -69,5 +77,15 @@ public:
 
 	double *parPtr(size_t poff) { return (double *)(((char *)(&p)) + poff); }
 };
+
+struct HSeg
+{
+	int y, xl, xr;
+	HSeg() {}
+	HSeg(int _y, int _xl, int _xr) :
+		y(_y), xl(_xl), xr(_xr) {}
+};
+
+std::vector<HSeg> get_particle_fill(int sz);
 
 #endif

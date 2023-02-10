@@ -33,7 +33,7 @@ private:
 	bool in_progress = false;
 	double o_sc;
 	double sc;
-	QPoint mpos;
+	QPointF mpos;
 private slots:
 	void on_timer();
 protected:
@@ -101,6 +101,7 @@ private:
 	bool wait_fl = false;
 
 	void createImage(int width, int height);
+	virtual void clearImage() override;
 public:
 	rsImageViewQt() { width = height = 1; }
 	rsImageViewQt(int width, int height) { createImage(width, height); }

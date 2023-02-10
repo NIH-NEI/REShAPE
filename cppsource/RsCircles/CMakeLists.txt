@@ -48,6 +48,13 @@ if(WIN32)
 	install(FILES "${Qt5_DIR}/../../../plugins/imageformats/qtiff.dll" DESTINATION "./imageformats" CONFIGURATIONS Release)
 	install(FILES "${Qt5_DIR}/../../../translations/qt_en.qm" DESTINATION "./translations" CONFIGURATIONS Release)
 	
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${Qt5_DIR}/../../../plugins/platforms/qwindows.dll" "$<TARGET_FILE_DIR:${PROJECT_NAME}>/platforms/qwindows.dll")
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${Qt5_DIR}/../../../plugins/imageformats/qtiff.dll" "$<TARGET_FILE_DIR:${PROJECT_NAME}>/imageformats/qtiff.dll")
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${Qt5_DIR}/../../../translations/qt_en.qm" "$<TARGET_FILE_DIR:${PROJECT_NAME}>/translations/qt_en.qm")
+	
 	set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ".")
 	include (InstallRequiredSystemLibraries)
 

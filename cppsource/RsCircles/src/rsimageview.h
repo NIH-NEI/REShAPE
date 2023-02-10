@@ -22,13 +22,15 @@ protected:
 	int maxn;
 	QImage *legend = NULL;
 	
+	virtual void clearImage() = 0;
 	void fillParticle(rsParticle &pt, byte r, byte g, byte b);
-	void reFillParticles();
-	void GenerateLegend();
 
 public:
 	rsImageView() {}
 	virtual ~rsImageView();
+
+	void reFillParticles();
+	void GenerateLegend();
 
 	virtual void ResetView(bool camera_flag = true) = 0; //used for initialization
 	virtual void InitializeView() = 0;
@@ -39,10 +41,12 @@ public:
 
 	void SetParticles(std::vector<rsParticle> *p_particles);
 	void SetGlasbeyPalette(rsPalette *glasbey) { this->glasbey = glasbey; }
-	void SetVisualParameter(int par_idx);
+	void SetVisualParameter(int par_idx, double vmin, double vmax);
 	void SetPalette(rsPalette *palette);
 	void SetLegendWidth(int w);
 	QImage *GetLegend() { return legend; }
+	void SetOpacity(double v) { opacity = v; }
+	void SetParticleSize(int v) { vsz = v; }
 };
 
 #endif

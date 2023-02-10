@@ -52,7 +52,7 @@ void rsScrollArea::wheelEvent(QWheelEvent *e)
 	}
 	else {
 		o_sc = scs = v->GetScale();
-		mpos = e->pos();
+		mpos = e->position();
 	}
 
 	QPoint dg8 = e->angleDelta();
@@ -175,9 +175,13 @@ void rsImageViewQt::createImage(int width, int height)
 	this->width = width;
 	this->height = height;
 	img = new QImage(width, height, QImage::Format_RGB888);
+	clearImage();
+}
 
-	for (int row=0; row<height; row++) {
-		byte *p = img->scanLine(row);
+void rsImageViewQt::clearImage()
+{
+	for (int row = 0; row < height; row++) {
+		byte* p = img->scanLine(row);
 		for (int col = 0; col < width; col++) {
 			*p++ = 0;
 			*p++ = 0;
@@ -190,14 +194,14 @@ void rsImageViewQt::SetScale(double sc)
 {
 	imgLabel->cancelHot();
 	this->sc = sc;
-	QSize pms = imgLabel->pixmap()->size();
+	QSize pms = imgLabel->pixmap(Qt::ReturnByValue).size();
 	imgLabel->resize(int(sc*pms.width()), int(sc*pms.height()));
 	imgLabel->SetScale(sc);
 }
 
 double rsImageViewQt::GetFitToViewScale()
 {
-	QSize pms = imgLabel->pixmap()->size();
+	QSize pms = imgLabel->pixmap(Qt::ReturnByValue).size();
 	QSize vps = scrollArea->size();
 	double scx = double(vps.width()-2) / double(pms.width());
 	double scy = double(vps.height()-2) / double(pms.height());
@@ -224,9 +228,9 @@ void rsImageViewQt::endWait()
 void rsImageViewQt::ResetView(bool camera_flag)
 {
 	if (!imgLabel) return;
-	if (!imgLabel->pixmap()) return;
+	if (imgLabel->pixmap(Qt::ReturnByValue).isNull()) return;
 	if (camera_flag) {
-		QSize pms = imgLabel->pixmap()->size();
+		QSize pms = imgLabel->pixmap(Qt::ReturnByValue).size();
 		sc = GetFitToViewScale();
 		imgLabel->resize(int(sc*pms.width()), int(sc*pms.height()));
 		imgLabel->SetScale(sc);

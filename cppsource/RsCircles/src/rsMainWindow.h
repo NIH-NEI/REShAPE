@@ -19,7 +19,9 @@
 #include <QLabel>
 #include <QComboBox>
 #include <QGroupBox>
+#include <QLineEdit>
 #include <QTextEdit>
+#include <QSlider>
 #include <QPushButton>
 
 #include "rsimage.h"
@@ -50,6 +52,8 @@ private slots:
 	void handleOpenFile(const char *fn);
 	void openImageData();
 	void visualParamChanged(int idx_par);
+	void opacitySliderReleased();
+	void cellSizeChanged(int idx);
 	void lutChanged(int idx_lut);
 	void innerChanged(int idx);
 	void outerChanged(int idx);
@@ -58,6 +62,7 @@ private slots:
 	void resetOuter(rsFigure &outer);
 	void saveImageData();
 	void arcButtonClicked();
+	void updButtonClicked();
 
 private:
 	// QuickView qviewer;
@@ -73,6 +78,9 @@ private:
 	static rsMainWindow *TheApp;
 	int screen_width, screen_height;
 	rsLUT * lutMgr;
+
+	std::vector<rsParamLimits> dfltLimits;
+	std::vector<rsParamLimits> curLimits;
 
 	int img_width, img_height;
 	double scale_to_img;
@@ -110,6 +118,19 @@ private:
 	QLabel *outLabel;
 	QComboBox *cbOuter;
 
+	QGroupBox* paramBox;
+	QGridLayout* paramLayout;
+	QLabel* cellSizeLabel;
+	QComboBox* cbCellSize;
+	QLabel* lbMin;
+	QLabel* lbMax;
+	QLineEdit* txMin;
+	QLineEdit* txMax;
+	QLabel* lbOpacity;
+	QSlider* slOpacity;
+	QPushButton* updButton;
+
+
 	QGroupBox *arcBox;
 	QGridLayout *arcLayout;
 	QTextEdit *arcText;
@@ -117,6 +138,7 @@ private:
 
 	ParticleReader rdr;
 	std::vector<rsParticle> particles;
+	bool _busy = false;
 
 	void createActions();
 	void createMenus();
@@ -125,7 +147,9 @@ private:
 	void setSelectors();
 	void loadState();
 	void saveState();
-
+	void updateParticleLimits();
+	void validateLimits();
+	void loadLimits();
 };
 
 #endif

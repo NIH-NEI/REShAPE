@@ -22,21 +22,23 @@ inline byte cc(byte *p, byte c, double o) {
 
 void rsImageView::fillParticle(rsParticle &pt, byte r, byte g, byte b)
 {
+	int x0 = pt.p.xStart;
+	int y0 = pt.p.yStart;
+	if (x0 < 10 || y0 < 10) return;
 	double o = opacity;
-	int x0 = pt.p.xStart - (vsz - 1) / 2;
-	int y0 = pt.p.yStart - (vsz - 1) / 2;
+	std::vector<HSeg> fill = get_particle_fill(vsz);
 	if (o < 1.) {
-		for (int y = y0; y < y0 + vsz; y++) {
-			byte *p = GetPixelDataPointer(x0, y);
-			for (int i = 0; i < vsz; i++) {
+		for (HSeg& hs : fill) {
+			byte* p = GetPixelDataPointer(x0 + hs.xl, y0 + hs.y);
+			for (int x = hs.xl; x <= hs.xr; x++) {
 				*p++ = cc(p, r, o); *p++ = cc(p, g, o); *p++ = cc(p, b, o);
 			}
 		}
 	}
 	else {
-		for (int y = y0; y < y0 + vsz; y++) {
-			byte *p = GetPixelDataPointer(x0, y);
-			for (int i = 0; i < vsz; i++) {
+		for (HSeg& hs : fill) {
+			byte *p = GetPixelDataPointer(x0+hs.xl, y0+hs.y);
+			for (int x = hs.xl; x <= hs.xr; x++) {
 				*p++ = r; *p++ = g; *p++ = b;
 			}
 		}
@@ -46,6 +48,7 @@ void rsImageView::fillParticle(rsParticle &pt, byte r, byte g, byte b)
 void rsImageView::reFillParticles()
 {
 	if (!p_particles) return;
+	clearImage();
 	std::vector<rsParticle> & particles = *p_particles;
 	if (par_idx == 1) {
 		maxn = 0;
@@ -59,18 +62,18 @@ void rsImageView::reFillParticles()
 	}
 	else if (par_idx > 1) {
 		size_t i;
-		vmin = NaN;
-		vmax = NaN;
-		for (i = 0; i < particles.size(); i++) {
-			rsParticle &pt = particles[i];
-			double v = *pt.parPtr(par_off);
-			if (std::isnan(v)) continue;
-			if (std::isnan(vmin)) {
-				vmin = vmax = v;
-				continue;
+		if (std::isnan(vmin) || std::isnan(vmax)) {
+			for (i = 0; i < particles.size(); i++) {
+				rsParticle& pt = particles[i];
+				double v = *pt.parPtr(par_off);
+				if (std::isnan(v)) continue;
+				if (std::isnan(vmin)) {
+					vmin = vmax = v;
+					continue;
+				}
+				if (vmin > v) vmin = v;
+				if (vmax < v) vmax = v;
 			}
-			if (vmin > v) vmin = v;
-			if (vmax < v) vmax = v;
 		}
 		if (vmin == vmax) vmax = vmax + 1.;
 		for (i = 0; i < particles.size(); i++) {
@@ -78,6 +81,8 @@ void rsImageView::reFillParticles()
 			double v = *pt.parPtr(par_off);
 			if (std::isnan(v)) v = vmin;
 			int j = (int)(5.5 + (250. * (v - vmin) / (vmax - vmin)));
+			if (j > 255) j = 255;
+			else if (j < 5) j = 5;
 			rsRGB & c = palette->GetColorAt(j);
 			fillParticle(pt, c.r, c.g, c.b);
 		}
@@ -110,7 +115,7 @@ void rsImageView::SetParticles(std::vector<rsParticle> *p_particles)
 	GenerateLegend();
 }
 
-void rsImageView::SetVisualParameter(int par_idx)
+void rsImageView::SetVisualParameter(int par_idx, double vmin, double vmax)
 {
 	if (par_idx < 0 || par_idx >= (int)(numVisualParams + 2))
 		par_idx = 0;
@@ -124,6 +129,8 @@ void rsImageView::SetVisualParameter(int par_idx)
 		par_name = visualParams[par_idx - 2].text;
 		par_off = visualParams[par_idx - 2].off;
 	}
+	this->vmin = vmin;
+	this->vmax = vmax;
 	reFillParticles();
 	GenerateLegend();
 }
