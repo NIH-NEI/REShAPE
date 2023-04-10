@@ -524,6 +524,7 @@ void rsReconstruct::write_parameter_images()
 			QJsonDocument json = QJsonDocument::fromJson(fi.readAll());
 			fi.close();
 			jlim = json.object();
+			use_limits = true;
 		}
 	}
 
