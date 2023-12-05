@@ -172,8 +172,8 @@ struct Particle
 	uint64 update_from_fill();
 	bool IsInside(int x, int y);
 	Point center_mass();
-	uint64 Particle::overlay_area(std::vector<HSeg>& other_fill);
-	uint64 Particle::overlay_area(Particle& other);
+	uint64 overlay_area(std::vector<HSeg>& other_fill);
+	uint64 overlay_area(Particle& other);
 	double iou(Particle& other) {
 		uint64 ovl = overlay_area(other);
 		if (ovl == 0) return 0.;
