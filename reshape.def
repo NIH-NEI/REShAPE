@@ -1,0 +1,125 @@
+bootstrap: docker
+From: centos:7
+# shamelesly taken from https://github.com/sylabs/singularity/blob/main/examples/legacy/2.2/contrib/centos7-ompi_cuda.def
+# Attempt to build singularity container for REShAPE
+#By building a singuliarity image wiith all the dependencies included,
+#one should be able to simply copy and run the piepline on a different hardware
+#without the need to go through the installation process.
+# The whole process can be split in 4 parts
+# Getting the base Centos7 image with CUDA and dependencies in a writable sandbox image
+# Building and install the thirdparty software manually inside the sanbbox_image
+# Fixing cppsource issues and building them manually
+# Fixing scripts and installing the missing libraries to make singualrity run with --nv flag
+#Since it took me a number of iterations, Ive saved the thirdparty directory separately
+#and include it from the filesystem instead of downloading it all over again.
+# building requires root, since we need a writable sandbox
+# singularity build --sandbox reshape_sandbox reshape.def
+# or singulairy build --no-cleanup reshape reshape.def
+# once everything is ready one can convert the sandbox into an image
+# running the container:
+# singularity exec --nv -B /run/user reshape.sif python /REShAPE/reshapectl.py
+
+%files
+   # used to place already available files to speedup singularity build
+   # modify the %post section accordingly
+   thirdparty /
+
+%post
+    export ctnlicense=/LICENSE
+    export arch='x86_64'
+    mkdir -p $ctnlicense
+    alias install_pkg="yum -y install"
+    # Reference: https://www.liquidweb.com/kb/enable-epel-repository/
+    install_pkg epel-release
+    yum -y update
+    alias clean_pkg='echo "clean not needed."'
+
+# dev-tools:
+    yum -y install gcc
+    yum -y install gcc-c++
+    yum -y install gcc-gfortran
+    yum -y install python-devel
+    install_pkg make
+    install_pkg cmake
+    install_pkg autoconf
+
+# basic-tools:
+    install_pkg deltarpm
+    install_pkg sudo
+    install_pkg xorg-x11-xauth.x86_64
+    install_pkg git
+    install_pkg vim
+    install_pkg curl hostname
+    install_pkg wget
+    install_pkg unzip
+    install_pkg tar
+    install_pkg gzip
+    install_pkg bc
+    install_pkg less
+    install_pkg util-linux
+    install_pkg strace
+    install_pkg which perl-Digest-SHA man
+
+# random reshape deps
+    # fix "libGL error: unable to load driver: swrast_dri.so"
+    install_pkg mesa-libGLw-devel.x86_64 mesa-dri-drivers
+    # libqxcb requires xkbcommon libs
+    install_pkg libxkbcommon-x11.x86_64 libxkbcommon.x86_64
+
+# cuda75:
+    wget -q https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/D42D0685.pub -O /tmp/D42D0685.pub
+    rpm --import /tmp/D42D0685.pub
+    rm -rf /tmp/D42D0685.pub
+    yum-config-manager -y --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/$arch/cuda-rhel7.repo
+    echo '5f3893abc7ac2d57a5a4d54382d00fd0b0f6ff3b537b28b8c1300462c679280297b0aaaac4c188c54cd5c1c3b224a1d5c40b09f1cbe86e71824fb0e36d2f9d13 -' > cuda-repo.rpm.sha512
+    curl -sSL "http://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-repo-rhel7-7.5-18.x86_64.rpm" |\
+        tee cuda-repo.rpm | sha512sum -c  cuda-repo.rpm.sha512
+    rpm -i  cuda-repo.rpm && rm -f  cuda-repo.rpm*
+    yum -y update
+    export cuda_ver=7-5
+    export CUDA_VERSION=7.5.18
+    install_pkg cuda-minimal-build-$cuda_ver
+    install_pkg cuda-command-line-tools-$cuda_ver
+    install_pkg cuda-toolkit-$cuda_ver
+    ln -s /usr/local/cuda-*/ /usr/local/cuda
+    export CUDA_PATH=/usr/local/cuda
+    export CUDA_HOME=$CUDA_PATH
+    export CUDA_INC=$CUDA_PATH/include
+    export CUDADIR=$CUDA_PATH
+    export CUDA_ROOT=$CUDA_PATH
+    env | grep "^CUDA.*="|sed -e "s/^/export /" >> /environment
+    echo 'export PATH=$CUDA_PATH/bin:$PATH' >> /environment
+    echo 'export LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH' >> /environment
+    export LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH
+    cat /usr/local/cuda/doc/EULA.txt > $ctnlicense/CUDA.EULA.txt
+
+# unfuck pip
+   install_pkg python2-pip
+   mkdir -p ~/.pip
+   printf  '[global]\ntrusted-host = files.pythonhosted.org\n\tbootstrap.pypa.io\n\tpypi.org' >~/.pip/pip.conf
+   wget https://bootstrap.pypa.io/pip/2.7/get-pip.py
+   PYTHONHTTPSVERIFY=0 python get-pip.py
+   pip install --upgrade setuptools
+
+# get up-tp-date cmake, required for VTK
+   cd /srv/ && wget https://github.com/Kitware/CMake/releases/download/v3.28.0-rc5/cmake-3.28.0-rc5-linux-x86_64.sh && sh cmake-3.28.0-rc5-linux-x86_64.sh --skip-license
+   cd / && rm -vf /srv/cmake-3.28.0-rc5-linux-x86_64.sh
+
+# this where base image is ready and thirdparty require manual interaction
+# QT requires an account (registration) and cmake (export PATH=/srv/cmake-3.28.0-rc5-linux-x86_64/bin/:${PATH})
+# VTK requires C++11 (devtoolset-9, yum install devtoolset-9)
+# navigate to thirdparty and build all tools
+
+# reshape:
+   git clone https://github.com/nih-nei/REShAPE
+   cd REShAPE
+   rm -rf thirdparty
+   ln -s /thirdparty
+   pip install --upgrade pip
+   python setup.py
+
+%environment
+    export LC_ALL=C
+
+%runscript
+    /usr/bin/bash
